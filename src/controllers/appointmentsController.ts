@@ -55,6 +55,8 @@ const statusSchema = Joi.object({
 const addMinutes = (date: Date, minutes: number) =>
   new Date(date.getTime() + minutes * 60 * 1000);
 
+const CANCELLATION_DEADLINE_HOURS = 24;
+
 const isWithinSlot = (startsAt: Date, endsAt: Date, slot: any) => {
   const slotStart = new Date(slot.starts_at);
   const slotEnd = new Date(slot.ends_at);
@@ -414,6 +416,17 @@ export const changeAppointmentStatus = async (req: AuthRequest, res: Response, n
       await trx.rollback();
       res.status(404).json({ message: "Appointment not found" });
       return;
+    }
+
+    if (value.status === AppointmentStatus.CANCELED) {
+      const cancellationDeadline = new Date(appointment.starts_at).getTime() - CANCELLATION_DEADLINE_HOURS * 60 * 60 * 1000;
+      if (Date.now() > cancellationDeadline) {
+        await trx.rollback();
+        res.status(400).json({
+          message: "Appointment can be canceled no later than 24 hours before start time",
+        });
+        return;
+      }
     }
 
     await trx("Appointments")

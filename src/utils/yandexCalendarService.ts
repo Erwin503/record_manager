@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { Knex } from "knex";
 import knex from "../db/knex";
 import logger from "./logger";
+import { AppointmentStatus } from "../enum/appointmentEnum";
 
 const DEFAULT_CALDAV_BASE_URL = "https://caldav.yandex.ru";
 
@@ -42,6 +43,23 @@ const escapeIcs = (value: string) =>
 
 const formatIcsDate = (value: Date) =>
   value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+
+const appointmentStatusLabels: Record<string, string> = {
+  [AppointmentStatus.PENDING]: "Ожидает подтверждения",
+  [AppointmentStatus.CONFIRMED]: "Подтверждена",
+  [AppointmentStatus.IN_PROGRESS]: "В работе",
+  [AppointmentStatus.COMPLETED]: "Завершена",
+  [AppointmentStatus.CANCELED]: "Отменена",
+  [AppointmentStatus.NO_SHOW]: "Клиент не пришел",
+};
+
+const getCalendarEventStatus = (status: string) => {
+  if (status === AppointmentStatus.CANCELED) return "CANCELLED";
+  if (status === AppointmentStatus.CONFIRMED) return "CONFIRMED";
+  return "TENTATIVE";
+};
+
+const getStatusLabel = (status: string) => appointmentStatusLabels[status] || status;
 
 const buildAuthHeader = (username: string, password: string) =>
   `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
@@ -262,7 +280,9 @@ const getAppointmentForCalendar = async (
     .first();
 
 const buildIcs = (appointment: any, uid: string) => {
+  const statusLabel = getStatusLabel(appointment.status);
   const description = [
+    `Status: ${statusLabel}`,
     `Business: ${appointment.business_name}`,
     `Service: ${appointment.service_name}`,
     `Variant: ${appointment.service_variant_name}`,
@@ -285,7 +305,8 @@ const buildIcs = (appointment: any, uid: string) => {
     `DTSTAMP:${formatIcsDate(new Date())}`,
     `DTSTART:${formatIcsDate(new Date(appointment.starts_at))}`,
     `DTEND:${formatIcsDate(new Date(appointment.ends_at))}`,
-    `SUMMARY:${escapeIcs(`${appointment.service_name} - ${appointment.client_name}`)}`,
+    `STATUS:${getCalendarEventStatus(appointment.status)}`,
+    `SUMMARY:${escapeIcs(`[${statusLabel}] ${appointment.service_name} - ${appointment.client_name}`)}`,
     `DESCRIPTION:${escapeIcs(description)}`,
     appointment.branch_address ? `LOCATION:${escapeIcs(appointment.branch_address)}` : null,
     "END:VEVENT",
@@ -295,6 +316,8 @@ const buildIcs = (appointment: any, uid: string) => {
     .filter(Boolean)
     .join("\r\n");
 };
+
+export const __testBuildIcs = buildIcs;
 
 const yandexCalDavRequest = async (
   connection: any,

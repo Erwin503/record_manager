@@ -481,7 +481,10 @@ export const swaggerSpec = {
             },
           },
         },
-        responses: { "200": { description: "Updated" } },
+        responses: {
+          "200": { description: "Updated" },
+          "400": { description: "Invalid status change or cancellation less than 24 hours before start time" },
+        },
       },
     },
     "/calendar/yandex/connect": {
