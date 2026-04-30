@@ -271,6 +271,7 @@ export const swaggerSpec = {
         requestBody: { content: { "application/json": { schema: { $ref: "#/components/schemas/Business" } } } },
         responses: {
           "201": { description: "Created" },
+          "429": { description: "Daily appointment limit reached for this employee" },
           "502": { description: "Appointment was not created because calendar sync failed" },
         },
       },

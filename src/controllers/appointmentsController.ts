@@ -56,6 +56,7 @@ const addMinutes = (date: Date, minutes: number) =>
   new Date(date.getTime() + minutes * 60 * 1000);
 
 const CANCELLATION_DEADLINE_HOURS = 24;
+const MAX_DAILY_APPOINTMENTS_PER_EMPLOYEE = 3;
 
 const isWithinSlot = (startsAt: Date, endsAt: Date, slot: any) => {
   const slotStart = new Date(slot.starts_at);
@@ -69,6 +70,16 @@ const hasOverlap = (startsAt: Date, endsAt: Date, busyIntervals: any[]) =>
     const busyEnd = new Date(busy.ends_at);
     return startsAt < busyEnd && endsAt > busyStart;
   });
+
+const getDayRange = (date: Date) => {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  return { dayStart, dayEnd };
+};
 
 export const getAvailableEmployees = async (
   req: Request,
@@ -314,13 +325,36 @@ export const bookAppointment = async (req: AuthRequest, res: Response, next: Nex
       return;
     }
 
+    const clientId = value.client_id ?? req.user.id;
+    const { dayStart, dayEnd } = getDayRange(startsAt);
+    const dailyAppointments = await trx("Appointments")
+      .where({
+        employee_id: value.employee_id,
+        client_id: clientId,
+      })
+      .whereNotIn("status", [AppointmentStatus.CANCELED, AppointmentStatus.NO_SHOW])
+      .andWhere("starts_at", ">=", dayStart)
+      .andWhere("starts_at", "<", dayEnd)
+      .forUpdate()
+      .count("* as total")
+      .first();
+
+    if (Number(dailyAppointments?.total || 0) >= MAX_DAILY_APPOINTMENTS_PER_EMPLOYEE) {
+      await trx.rollback();
+      res.status(429).json({
+        message: "Daily appointment limit reached for this employee",
+        details: `A user cannot create more than ${MAX_DAILY_APPOINTMENTS_PER_EMPLOYEE} appointments with the same employee per day`,
+      });
+      return;
+    }
+
     const [id] = await trx("Appointments").insert({
       business_id: variant.business_id,
       branch_id: branchId,
       service_id: variant.service_id,
       service_variant_id: value.service_variant_id,
       employee_id: value.employee_id,
-      client_id: value.client_id ?? req.user.id,
+      client_id: clientId,
       schedule_slot_id: workInterval.id,
       starts_at: startsAt,
       ends_at: endsAt,
