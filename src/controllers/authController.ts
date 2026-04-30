@@ -44,6 +44,7 @@ export const signup = async (
   if (error) {
     const details = error.details.map((d) => d.message);
     res.status(400).json({ message: "Invalid payload", details });
+    return;
   }
   try {
     const { name, email, password, phone } = value;
@@ -54,7 +55,7 @@ export const signup = async (
 
     const password_hash = await bcrypt.hash(password, 10);
     const [user] = await knex(USERS_TABLE)
-      .insert({ name, email, password_hash, phone, role: "user" })
+      .insert({ name, email, password_hash, phone, role: "client" })
       .returning(["id", "name", "email", "phone", "role"]);
 
     const token = jwt.sign(
@@ -82,6 +83,7 @@ export const login = async (
   if (error) {
     const details = error.details.map((d) => d.message);
     res.status(400).json({ message: "Invalid payload", details });
+    return;
   }
   try {
     const { email, password } = value;
@@ -158,6 +160,7 @@ export const updateUserProfile = async (
   if (error) {
     const details = error.details.map((d) => d.message);
     res.status(400).json({ message: "Invalid payload", details });
+    return;
   }
   try {
     const userId = req.user.id;

@@ -2,19 +2,17 @@ import { v4 as uuidv4 } from "uuid";
 import QRCode from "qrcode";
 import knex from "../db/knex";
 
-export const generateSessionQrCode = async (sessionId: number) => {
-  const session = await knex("Sessions").where({ id: sessionId }).first();
-  if (!session) throw new Error("Сессия не найдена");
+export const generateAppointmentQrCode = async (appointmentId: number) => {
+  const appointment = await knex("Appointments").where({ id: appointmentId }).first();
+  if (!appointment) throw new Error("Appointment not found");
 
   const token = uuidv4();
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-  const url = `${
-    process.env.BASE_URL || "http://localhost:3000"
-  }/api/qr/access/${token}`;
+  const url = `${process.env.BASE_URL || "http://localhost:3000"}/api/qr/access/${token}`;
 
-  await knex("QueueQrTokens").insert({
+  await knex("AppointmentQrTokens").insert({
     token,
-    session_id: sessionId,
+    appointment_id: appointmentId,
     expires_at: expiresAt,
     used: false,
   });

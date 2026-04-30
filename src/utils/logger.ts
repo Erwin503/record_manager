@@ -1,35 +1,52 @@
-import { createLogger, format, transports } from 'winston';
+import { createLogger, format, transports } from "winston";
 
 const { combine, timestamp, printf, errors } = format;
 
-// Определяем формат вывода логов
-const logFormat = printf(({ level, message, timestamp, stack }) => {
-  return `${timestamp} [${level}]: ${stack || message}`;
+const stringifyMeta = (value: unknown) =>
+  JSON.stringify(
+    value,
+    (_key, item) => {
+      if (item instanceof Error) {
+        return {
+          name: item.name,
+          message: item.message,
+          stack: item.stack,
+        };
+      }
+      return item;
+    },
+    2
+  );
+
+const logFormat = printf((info) => {
+  const { level, message, timestamp, stack, ...meta } = info;
+  const metaText = Object.keys(meta).length ? ` ${stringifyMeta(meta)}` : "";
+  return `${timestamp} [${level}]: ${stack || message}${metaText}`;
 });
 
-// Создаем логгер
-const logger = createLogger({
-  level: 'debug',
-  format: combine(
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+const withBaseFormat = (...extraFormats: any[]) =>
+  combine(
+    ...extraFormats,
+    timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
     errors({ stack: true }),
     logFormat
-  ),
+  );
+
+const logger = createLogger({
+  level: "debug",
+  format: withBaseFormat(),
   transports: [
     new transports.Console({
-      format: combine(
-        format.colorize(), // Цветовая разметка только для консоли
-        logFormat
-      ),
+      format: withBaseFormat(format.colorize()),
     }),
     new transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
-      format: logFormat, // Отключаем цветовую разметку для файлов
+      filename: "logs/error.log",
+      level: "error",
+      format: withBaseFormat(),
     }),
     new transports.File({
-      filename: 'logs/combined.log',
-      format: logFormat, // Отключаем цветовую разметку для файлов
+      filename: "logs/combined.log",
+      format: withBaseFormat(),
     }),
   ],
 });

@@ -1,76 +1,115 @@
-// Интерфейс для таблицы Users
+export type UserRole = "super_admin" | "business_admin" | "employee" | "client";
+
 export interface User {
   id?: number;
   name?: string;
   email: string;
   password_hash: string;
   phone?: string;
-  role: "super_admin" | "local_admin" | "employee" | "user";
+  role: UserRole;
 }
 
-// Интерфейс для таблицы EmploeeDetails
-export interface EmployeeDetails {
+export interface Business {
   id?: number;
-  user_id: number; // Ссылка на пользователя
-  specialization?: string;
-  experience_years?: number;
-  district_id: number; // Ссылка на отдел
-  bio?: string;
-  certifications?: string;
-}
-
-// Интерфейс для таблицы WorkingHours
-export interface WorkingHours {
-  id?: number;
-  employee_id: number; // Ссылка на тренера
-  day_of_week:
-    | "Monday"
-    | "Tuesday"
-    | "Wednesday"
-    | "Thursday"
-    | "Friday"
-    | "Saturday"
-    | "Sunday";
-  specific_date?: Date; // Необязательное поле для специфической даты
-  start_time: string; // Используем строку для времени
-  end_time: string;
-}
-
-// Интерфейс для таблицы Districts
-export interface District {
-  id?: number;
+  owner_id: number;
   name: string;
-  address?: string;
+  description?: string;
+  business_type:
+    | "tire_service"
+    | "beauty_salon"
+    | "barbershop"
+    | "spa"
+    | "repair_service"
+    | "other";
   phone?: string;
   email?: string;
+  website?: string;
+  status: "active" | "inactive" | "suspended";
 }
 
-// Интерфейс для таблицы Sessions
-export interface Session {
+export interface Branch {
   id?: number;
-  user_id: number;           // Ссылка на клиента
-  employee_id: number;       // Ссылка на сотрудника
-  working_hour_id: number;   // Ссылка на рабочий час
-  district_id: number;       // Ссылка на отдел
-  direction_id: number;      // Ссылка на направление
-  status: 'booked' | 'completed' | 'canceled';
-  comments?: string;
-  created_at?: Date;
-  updated_at?: Date;
+  business_id: number;
+  name: string;
+  address: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  phone?: string;
+  timezone: string;
+  is_main: boolean;
 }
 
-export interface Category {
+export interface ServiceCategory {
   id?: number;
+  business_id: number;
   name: string;
   description?: string;
-  district_id: number; // Ссылка на отдел (District)
 }
 
-// Интерфейс для таблицы направлений
-export interface Direction {
+export interface Service {
   id?: number;
+  business_id: number;
+  category_id?: number | null;
   name: string;
   description?: string;
-  requirements?: string;
-  category_id: number; // Ссылка на категорию (Category)
+  is_active: boolean;
+}
+
+export interface ServiceVariant {
+  id?: number;
+  service_id: number;
+  name: string;
+  duration_minutes: number;
+  price: number;
+  currency: string;
+  is_active: boolean;
+}
+
+export interface EmployeeProfile {
+  id?: number;
+  user_id: number;
+  business_id: number;
+  branch_id?: number | null;
+  position?: string;
+  bio?: string;
+  photo_url?: string;
+  is_active: boolean;
+}
+
+export interface EmployeeServiceVariant {
+  id?: number;
+  employee_id: number;
+  service_variant_id: number;
+}
+
+export interface ScheduleSlot {
+  id?: number;
+  employee_id: number;
+  branch_id?: number | null;
+  starts_at: Date | string;
+  ends_at: Date | string;
+  status: "available" | "blocked";
+  source: "manual" | "generated";
+}
+
+export interface Appointment {
+  id?: number;
+  business_id: number;
+  branch_id?: number | null;
+  service_id: number;
+  service_variant_id: number;
+  employee_id: number;
+  client_id?: number | null;
+  schedule_slot_id?: number | null;
+  starts_at: Date | string;
+  ends_at: Date | string;
+  status: "pending" | "confirmed" | "in_progress" | "completed" | "canceled" | "no_show";
+  price_snapshot: number;
+  duration_snapshot_minutes: number;
+  client_name: string;
+  client_phone?: string;
+  client_email?: string;
+  comment?: string;
+  cancel_reason?: string;
 }

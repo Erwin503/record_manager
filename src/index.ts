@@ -16,7 +16,7 @@ const port = process.env.PORT || 3000;
 app.use(
   cors({
     origin: "*", // Укажите адрес вашего клиента
-    methods: ["GET", "POST", "PUT", "DELETE"], // Разрешённые HTTP-методы
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"], // Разрешённые HTTP-методы
     credentials: true, // Если требуется отправка cookie
   })
 );
@@ -28,6 +28,9 @@ app.use(express.json());
 app.use(logRequests);
 
 // Swagger UI
+app.get('/api-docs.json', (_req, res) => {
+  res.json(swaggerSpec);
+});
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Подключение маршрутов

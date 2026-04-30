@@ -1,49 +1,30 @@
 import express from "express";
 import userRoutes from "./authRoutes";
-import districtRoutes from "./districtRoutes";
-import workingHoursRoutes from "./workingHoursRoutes";
-import sessionsRoutes from "./sessionsRoutes";
-import qrCodeRoutes from "./qrCodeRoutes";
-import employeeDetailsRoutes from "./employeeDetailsRoutes";
 import adminRoutes from "./adminRoutes";
-import categoryRoutes from "./categoriesRouter";
-import dirRoutes from "./dirRouter";
-import statRoutes from "./statisticsRouter";
+import businessRoutes from "./businessRoutes";
+import branchesRoutes from "./branchesRoutes";
+import servicesRoutes from "./servicesRoutes";
+import employeeProfilesRoutes from "./employeeProfilesRoutes";
+import scheduleSlotsRoutes from "./scheduleSlotsRoutes";
+import appointmentsRoutes from "./appointmentsRoutes";
+import qrCodeRoutes from "./qrCodeRoutes";
 import notificationRoutes from "./notificationRoutes";
-
+import statRoutes from "./statisticsRouter";
+import calendarRoutes from "./calendarRoutes";
 
 const router = express.Router();
 
-// Подключение маршрутов для пользователей
 router.use("/users", userRoutes);
-
-// админское управление пользователями
 router.use("/admin", adminRoutes);
-
-// Подключение маршрутов для отделов
-router.use("/districts", districtRoutes);
-
-// Подключение маршрутов для категорий
-router.use("/categories", categoryRoutes);
-
-// Подключение маршрутов для категорий
-router.use("/dir", dirRoutes);
-
-// Подключение маршрутов для информации о сотрудниках
-router.use("/employee-details", employeeDetailsRoutes);
-
-router.use("/working-hours", workingHoursRoutes); // CRUD для рабочих часов сотрудника
-
-// Подключение маршрутов для сессий
-router.use("/sessions", sessionsRoutes);
-
-// Подключение маршрутов для QR
+router.use("/businesses", businessRoutes);
+router.use("/branches", branchesRoutes);
+router.use("/services", servicesRoutes);
+router.use("/employees", employeeProfilesRoutes);
+router.use("/schedule-slots", scheduleSlotsRoutes);
+router.use("/appointments", appointmentsRoutes);
 router.use("/qr", qrCodeRoutes);
-
-// Подключение маршрутов для уведомлений и писем
 router.use("/notification", notificationRoutes);
-
-// Подключение маршрутов для статистики
 router.use("/stats", statRoutes);
+router.use("/calendar", calendarRoutes);
 
 export default router;

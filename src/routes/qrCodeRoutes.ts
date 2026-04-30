@@ -7,7 +7,7 @@ const router = express.Router();
 router.post(
   "/generate",
   authenticateToken,
-  qrCodeController.generateQrForSession
+  qrCodeController.generateQrForAppointment
 );
-router.get("/access/:token", qrCodeController.getSessionFromQrToken);
+router.get("/access/:token", qrCodeController.getAppointmentFromQrToken);
 export default router;

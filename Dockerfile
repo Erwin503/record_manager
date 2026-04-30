@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 4. Устанавливаем зависимости
-RUN npm ci --omit=dev
+RUN npm ci
 
 # 5. Копируем весь исходный код
 COPY . .

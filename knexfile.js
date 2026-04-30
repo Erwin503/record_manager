@@ -15,6 +15,7 @@ module.exports = {
       directory: './migrations',
       extension: 'ts',
       loadExtensions: ['.ts'],
+      disableMigrationsListValidation: true,
     },
   },
 };

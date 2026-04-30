@@ -1,9 +1,8 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import knex from "../db/knex";
 import { AuthRequest } from "../middleware/authMiddleware";
 import logger from "../utils/logger";
-import { sendEmail } from "../utils/mailService";
-import { buildSessionEmailContent } from "../utils/mailService";
+import { buildAppointmentEmailContent, sendEmail } from "../utils/mailService";
 
 export const getNotifications = async (
   req: AuthRequest,
@@ -17,7 +16,7 @@ export const getNotifications = async (
 
     res.status(200).json(notifications);
   } catch (err) {
-    logger.error("Ошибка получения уведомлений", { error: err });
+    logger.error("Error fetching notifications", { error: err });
     next(err);
   }
 };
@@ -32,40 +31,40 @@ export const markNotificationRead = async (
 
     const updated = await knex("Notifications")
       .where({ id, user_id: req.user.id })
-      .update({ read: true });
+      .update({ is_read: true });
 
     if (!updated) {
-      res.status(404).json({ message: "Уведомление не найдено" });
+      res.status(404).json({ message: "Notification not found" });
       return;
     }
 
-    res.status(200).json({ message: "Уведомление прочитано" });
+    res.status(200).json({ message: "Notification marked as read" });
   } catch (err) {
-    logger.error("Ошибка отметки уведомления", { error: err });
+    logger.error("Error marking notification as read", { error: err });
     next(err);
   }
 };
 
 export const sendBookingConfirmationEmail = async (
   userId: number,
-  sessionId: number
+  appointmentId: number
 ): Promise<void> => {
   const user = await knex("Users")
     .select("id", "email", "name")
     .where({ id: userId })
     .first();
 
-  if (!user || !user.email) {
-    logger.warn("Пользователь не найден или отсутствует email", { userId });
+  if (!user?.email) {
+    logger.warn("User not found or email missing", { userId });
     return;
   }
 
-  const { subject, html } = await buildSessionEmailContent(
-    sessionId,
-    user.name || "Клиент"
+  const { subject, html } = await buildAppointmentEmailContent(
+    appointmentId,
+    user.name || "Client"
   );
-  const title = "Запись в очередь";
-  await createNotification(user.id, title, "email", html);
+  const title = "Appointment created";
+  await createNotification(user.id, title, "email", html, appointmentId);
   await sendEmail(user.email, subject, html, title);
 };
 
@@ -73,16 +72,18 @@ export const createNotification = async (
   userId: number,
   title: string,
   type: string,
-  message?: string
+  message?: string,
+  appointmentId?: number
 ) => {
   try {
     await knex("Notifications").insert({
       user_id: userId,
+      appointment_id: appointmentId ?? null,
       title,
       message,
       type,
     });
   } catch (err) {
-    logger.error("Ошибка создания уведомления", { error: err });
+    logger.error("Error creating notification", { error: err });
   }
 };

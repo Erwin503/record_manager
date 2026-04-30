@@ -1,73 +1,56 @@
 import { Request, Response, NextFunction } from "express";
 import knex from "../db/knex";
 import logger from "../utils/logger";
-import { generateSessionQrCode } from "../utils/qrService";
+import { generateAppointmentQrCode } from "../utils/qrService";
 import { AuthRequest } from "../middleware/authMiddleware";
 
-export const generateQrForSession = async (
+export const generateQrForAppointment = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
-  const { sessionId } = req.body;
+  const { appointmentId } = req.body;
   const user = req.user;
 
-  // Проверка авторизации
-  if (!user) {
-    res.status(401).json({ error: "Неавторизованный доступ" });
-    return;
-  }
-
-  // Валидация sessionId
-  if (!sessionId || typeof sessionId !== "number") {
-    res.status(400).json({
-      error: "sessionId обязателен и должен быть числом",
-    });
+  if (!appointmentId || typeof appointmentId !== "number") {
+    res.status(400).json({ error: "appointmentId is required and must be a number" });
     return;
   }
 
   try {
-    // Если пользователь обычный, проверим, что он владелец сессии
-    if (user.role === "user") {
-      const session = await knex("Sessions")
-        .select("id", "user_id")
-        .where({ id: sessionId })
+    if (user.role === "client") {
+      const appointment = await knex("Appointments")
+        .select("id", "client_id")
+        .where({ id: appointmentId })
         .first();
 
-      if (!session) {
-        res.status(404).json({ error: "Сессия не найдена" });
+      if (!appointment) {
+        res.status(404).json({ error: "Appointment not found" });
         return;
       }
 
-      if (session.user_id !== user.id) {
-        res.status(403).json({ error: "Доступ запрещён к чужой сессии" });
+      if (appointment.client_id !== user.id) {
+        res.status(403).json({ error: "Access denied" });
         return;
       }
     }
 
-    // Генерация QR-кода
-    const { token, expiresAt, url, qrCode } = await generateSessionQrCode(
-      sessionId
-    );
+    const { token, expiresAt, url, qrCode } = await generateAppointmentQrCode(appointmentId);
 
     res.status(201).json({
       token,
-      sessionId,
+      appointmentId,
       expiresAt,
       url,
       qrCode,
     });
-    return;
   } catch (err: any) {
-    logger.error("Ошибка генерации QR", { error: err });
-    res.status(500).json({
-      error: err.message || "Внутренняя ошибка при генерации QR",
-    });
-    return;
+    logger.error("Error generating QR", { error: err });
+    res.status(500).json({ error: err.message || "QR generation failed" });
   }
 };
 
-export const getSessionFromQrToken = async (
+export const getAppointmentFromQrToken = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -75,26 +58,25 @@ export const getSessionFromQrToken = async (
   const { token } = req.params;
 
   try {
-    const qrToken = await knex("queueqrtokens").where({ token }).first();
+    const qrToken = await knex("AppointmentQrTokens").where({ token }).first();
 
     if (!qrToken) {
-      res.status(404).json({ message: "QR-код не найден" });
+      res.status(404).json({ message: "QR code not found" });
       return;
     }
 
     const now = new Date();
-
     if (qrToken.expires_at && qrToken.expires_at < now) {
-      res.status(410).json({ message: "QR-код истёк" });
+      res.status(410).json({ message: "QR code expired" });
       return;
     }
 
     res.status(200).json({
-      sessionId: qrToken.session_id,
-      message: "QR действителен",
+      appointmentId: qrToken.appointment_id,
+      message: "QR code is valid",
     });
   } catch (err) {
-    logger.error("Ошибка при обработке QR-доступа", { error: err });
+    logger.error("Error handling QR access", { error: err });
     next(err);
   }
 };

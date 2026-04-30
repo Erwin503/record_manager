@@ -1,12 +1,14 @@
 {
-  "name": "hakathon",
-  "version": "1.0.0",
+  "name": "record_manager",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
+    "test": "node --test tests",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "migrate": "knex migrate:latest",
+    "db:fresh": "node scripts/freshDatabase.js",
     "migrate:rollback": "knex migrate:rollback",
     "migrate:make": "knex migrate:make"
   },
