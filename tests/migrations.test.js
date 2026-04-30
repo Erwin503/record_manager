@@ -51,6 +51,7 @@ test("migrations create the business booking schema table by table", async (t) =
     [
       "AppointmentCalendarEvents",
       "AppointmentQrTokens",
+      "AppointmentReminders",
       "Appointments",
       "Branches",
       "Businesses",
@@ -90,6 +91,7 @@ test("service variants keep duration and employees are linked to variants", asyn
 
   const variantColumns = await getColumns(db, "ServiceVariants");
   assert.ok(variantColumns.includes("duration_minutes"));
+  assert.ok(variantColumns.includes("rebook_reminder_days"));
   assert.ok(variantColumns.includes("price"));
   assert.ok(variantColumns.includes("currency"));
 
@@ -139,4 +141,21 @@ test("appointments store snapshots and Yandex calendar sync state", async (t) =>
   for (const column of ["appointment_id", "employee_id", "calendar_id", "external_event_id", "sync_status"]) {
     assert.ok(eventColumns.includes(column), `AppointmentCalendarEvents.${column} is required`);
   }
+});
+
+test("appointment reminders prevent duplicate client reminders", async (t) => {
+  const db = createTestDb();
+  t.after(() => db.destroy());
+
+  for (const migration of loadMigrations()) {
+    await migration.module.up(db);
+  }
+
+  const reminderColumns = await getColumns(db, "AppointmentReminders");
+  for (const column of ["appointment_id", "user_id", "reminder_type", "scheduled_for", "sent_at"]) {
+    assert.ok(reminderColumns.includes(column), `AppointmentReminders.${column} is required`);
+  }
+
+  const reminderIndexes = await getIndexes(db, "AppointmentReminders");
+  assert.ok(reminderIndexes.some((index) => index.unique === 1), "appointment reminders must be unique per type");
 });

@@ -10,6 +10,7 @@ import {
   deleteAppointmentCalendarEvent,
   updateAppointmentCalendarEvent,
 } from "../utils/yandexCalendarService";
+import { scheduleRebookReminder } from "../utils/appointmentReminderService";
 
 const appointmentSchema = Joi.object({
   service_variant_id: Joi.number().integer().required(),
@@ -79,6 +80,72 @@ const getDayRange = (date: Date) => {
   dayEnd.setDate(dayEnd.getDate() + 1);
 
   return { dayStart, dayEnd };
+};
+
+const getAppointmentNotificationContext = async (appointmentId: number) =>
+  knex("Appointments as a")
+    .join("Services as s", "a.service_id", "s.id")
+    .join("ServiceVariants as sv", "a.service_variant_id", "sv.id")
+    .join("EmployeeProfiles as ep", "a.employee_id", "ep.id")
+    .join("Users as eu", "ep.user_id", "eu.id")
+    .leftJoin("Users as cu", "a.client_id", "cu.id")
+    .where("a.id", appointmentId)
+    .select(
+      "a.*",
+      "s.name as service_name",
+      "sv.name as service_variant_name",
+      "ep.user_id as employee_user_id",
+      "eu.name as employee_name",
+      "cu.name as registered_client_name"
+    )
+    .first();
+
+const statusTitles: Record<string, string> = {
+  [AppointmentStatus.PENDING]: "Запись ожидает подтверждения",
+  [AppointmentStatus.CONFIRMED]: "Запись подтверждена",
+  [AppointmentStatus.IN_PROGRESS]: "Запись в работе",
+  [AppointmentStatus.COMPLETED]: "Запись завершена",
+  [AppointmentStatus.CANCELED]: "Запись отменена",
+  [AppointmentStatus.NO_SHOW]: "Клиент не пришел",
+};
+
+const formatAppointmentDate = (value: string | Date) =>
+  new Date(value).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
+
+const notifyAppointmentParticipants = async (
+  appointmentId: number,
+  title: string,
+  messageBuilder: (appointment: any, recipient: "client" | "employee") => string
+) => {
+  const appointment = await getAppointmentNotificationContext(appointmentId);
+  if (!appointment) return;
+
+  const notifications = [
+    appointment.client_id && {
+      userId: appointment.client_id,
+      recipient: "client" as const,
+    },
+    appointment.employee_user_id && {
+      userId: appointment.employee_user_id,
+      recipient: "employee" as const,
+    },
+  ].filter(Boolean) as Array<{ userId: number; recipient: "client" | "employee" }>;
+
+  const uniqueNotifications = notifications.filter(
+    (item, index, list) => list.findIndex((candidate) => candidate.userId === item.userId) === index
+  );
+
+  await Promise.all(
+    uniqueNotifications.map((item) =>
+      createNotification(
+        item.userId,
+        title,
+        "internal",
+        messageBuilder(appointment, item.recipient),
+        appointmentId
+      )
+    )
+  );
 };
 
 export const getAvailableEmployees = async (
@@ -377,7 +444,17 @@ export const bookAppointment = async (req: AuthRequest, res: Response, next: Nex
     await createAppointmentCalendarEventOrFail(id, trx);
     await trx.commit();
     transactionCommitted = true;
-    await createNotification(req.user.id, "Запись создана", "internal", `Создана запись №${id}`);
+    await notifyAppointmentParticipants(
+      id,
+      "Запись создана",
+      (appointment, recipient) => {
+        const startsAt = formatAppointmentDate(appointment.starts_at);
+        if (recipient === "employee") {
+          return `Новая запись к вам: ${appointment.service_name} (${appointment.service_variant_name}) на ${startsAt}. Клиент: ${appointment.client_name}.`;
+        }
+        return `Вы записаны на ${appointment.service_name} (${appointment.service_variant_name}) к ${appointment.employee_name} на ${startsAt}.`;
+      }
+    );
     res.status(201).json(await knex("Appointments").where({ id }).first());
   } catch (err) {
     if (!transactionCommitted) {
@@ -483,6 +560,21 @@ export const changeAppointmentStatus = async (req: AuthRequest, res: Response, n
       await deleteAppointmentCalendarEvent(appointment.id);
     } else {
       await updateAppointmentCalendarEvent(appointment.id);
+    }
+    await notifyAppointmentParticipants(
+      appointment.id,
+      statusTitles[value.status] || "Статус записи изменён",
+      (updatedAppointment, recipient) => {
+        const startsAt = formatAppointmentDate(updatedAppointment.starts_at);
+        const statusTitle = statusTitles[value.status] || value.status;
+        if (recipient === "employee") {
+          return `${statusTitle}: ${updatedAppointment.service_name} (${updatedAppointment.service_variant_name}) на ${startsAt}. Клиент: ${updatedAppointment.client_name}.`;
+        }
+        return `${statusTitle}: ${updatedAppointment.service_name} (${updatedAppointment.service_variant_name}) к ${updatedAppointment.employee_name} на ${startsAt}.`;
+      }
+    );
+    if (value.status === AppointmentStatus.COMPLETED) {
+      await scheduleRebookReminder(appointment.id);
     }
     res.status(200).json(await knex("Appointments").where({ id: appointment.id }).first());
   } catch (err) {

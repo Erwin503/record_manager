@@ -22,6 +22,7 @@ const variantSchema = Joi.object({
   duration_minutes: Joi.number().integer().min(1).required(),
   price: Joi.number().min(0).default(0),
   currency: Joi.string().length(3).default("RUB"),
+  rebook_reminder_days: Joi.number().integer().min(1).allow(null).optional(),
   is_active: Joi.boolean().default(true),
 });
 

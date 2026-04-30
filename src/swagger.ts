@@ -95,6 +95,7 @@ export const swaggerSpec = {
           duration_minutes: { type: "integer" },
           price: { type: "number" },
           currency: { type: "string" },
+          rebook_reminder_days: { type: "integer", nullable: true },
           is_active: { type: "boolean" },
         },
       },

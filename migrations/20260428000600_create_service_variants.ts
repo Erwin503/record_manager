@@ -15,6 +15,7 @@ export async function up(knex: Knex): Promise<void> {
     table.integer("duration_minutes").unsigned().notNullable();
     table.decimal("price", 12, 2).notNullable().defaultTo(0);
     table.string("currency", 3).notNullable().defaultTo("RUB");
+    table.integer("rebook_reminder_days").unsigned().nullable();
     table.boolean("is_active").notNullable().defaultTo(true);
     table.timestamp("created_at").defaultTo(knex.fn.now());
     table.timestamp("updated_at").defaultTo(knex.fn.now());

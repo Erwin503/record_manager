@@ -7,6 +7,7 @@ import { errorHandler } from "./middleware/errorHandler"; // Middleware для �
 import cors from "cors";
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
+import { startAppointmentReminderScheduler } from "./utils/appointmentReminderService";
 
 dotenv.config(); // Загрузка переменных окружения из .env
 
@@ -31,6 +32,8 @@ app.use(logRequests);
 app.get('/api-docs.json', (_req, res) => {
   res.json(swaggerSpec);
 });
+
+startAppointmentReminderScheduler();
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Подключение маршрутов
